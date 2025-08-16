@@ -123,3 +123,13 @@ scp: Connection closed
 2025-08-16 21:58:45,937 - INFO - SSH pas prêt sur 45.76.196.121 (tentative 4/20) code=255
 2025-08-16 21:58:58,577 - INFO - SSH pas prêt sur 45.76.196.121 (tentative 5/20) code=255
 2025-08-16 21:59:52,038 - INFO - SSH pas prêt sur 45.77.36.14 (tentative 1/20) code=255
+2025-08-16 23:53:55,373 - INFO - Création instance nrt: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 23:53:59,515 - INFO - Création instance sgp: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 23:54:02,377 - INFO - Création instance fra: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 23:54:04,277 - INFO - Création instance ewr: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 23:54:05,970 - INFO - Création instance icn: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 23:55:33,464 - INFO - SSH pas prêt sur 198.13.43.243 (tentative 1/30) code=255
+2025-08-16 23:55:46,139 - INFO - SSH pas prêt sur 198.13.43.243 (tentative 2/30) code=255
+2025-08-16 23:55:58,749 - INFO - SSH pas prêt sur 198.13.43.243 (tentative 3/30) code=255
+2025-08-16 23:57:24,795 - INFO - SSH pas prêt sur 207.148.71.122 (tentative 1/30) code=255
+2025-08-16 23:57:35,664 - INFO - SSH pas prêt sur 207.148.71.122 (tentative 2/30) code=255

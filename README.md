@@ -1,4 +1,5 @@
-# Vultr Multi-Region Latency Tester
+# CEX/DEX Latency measurement with centralization
+# Vultr Multi-Region Latency : Orchestration > Deploy > Tester > Aggregator
 
 Measure HTTP latency to popular CEX/DEX endpoints while provisioning short‑lived Vultr instances across multiple regions. The script runs for a selected duration (0 = single pass from each region, 1, 5, 15, or 60 minutes), aggregates results, estimates costs, and prompts to destroy instances (auto‑destroys after 30s if no answer) to avoid unnecessary charges.
 
@@ -9,7 +10,7 @@ Measure HTTP latency to popular CEX/DEX endpoints while provisioning short‑liv
 - Aggregated results (pivot + Top 10) printed to console and saved to CSV.
 - Cost estimation proportional to the selected test duration.
 - Safe teardown: prompts for destruction and defaults to destroy after 30s of inactivity.
-- Structured logging to console and rotating file `launch-gpt5.log`.
+- Structured logging to console and rotating file `latency-multi-geo.log`.
 - Colored output for average latencies: < 75 ms (green), 75–200 ms (orange), > 200 ms (red).
 
 ## Prerequisites
@@ -104,7 +105,7 @@ If the last command connects as `root` without asking for a password, your setup
 Run the main script:
 ```bash
 source .venv/bin/activate
-python launch-gpt5.py
+python latency-multi-geo.py
 ```
 You will be prompted to choose a duration: `0` (single pass), `1`, `5`, `15`, or `60` minutes (`1h` also accepted). The script will:
 - Create instances in default regions: Tokyo (`nrt`), Singapore (`sgp`), Frankfurt (`fra`), New York (`ewr`), Seoul (`icn`).
@@ -117,8 +118,18 @@ You will be prompted to choose a duration: `0` (single pass), `1`, `5`, `15`, or
 
 ## Output
 - CSV: `vultr_latency_test_<timestamp>_<duration>m.csv`
-- Log file: `launch-gpt5.log` (rotating)
+- Log file: `latency-multi-geo.log` (rotating)
 - Console summary: pivot table (average latency per region) and Top‑10 best latencies
+
+### Preview
+
+![Latency ranking](latency_ranking.png)
+
+![Vultr instances preview](vultr-preview.png)
+
+SSH key saved in Vultr UI:
+
+![Vultr SSH save](SSH/Vultr-SSH-save.png)
 
 ## Billing Notes (Vultr)
 - Instances are billed hourly/minute with a monthly cap. There is no long‑term commitment.
@@ -126,9 +137,9 @@ You will be prompted to choose a duration: `0` (single pass), `1`, `5`, `15`, or
 - This project prompts for teardown and destroys instances automatically after 30s if unattended.
 
 ## Configuration
-- Regions: update `regions_to_deploy` in `launch-gpt5.py` (default: `nrt`, `sgp`, `fra`, `ewr`, `icn`).
+- Regions: update `regions_to_deploy` in `latency-multi-geo.py` (default: `nrt`, `sgp`, `fra`, `ewr`, `icn`).
 - Plan/OS: `VULTR_PLAN_ID = "vc2-1c-2gb"`, `VULTR_OS_ID = 1743` (Ubuntu 22.04).
-- Endpoints: see `REGION_EXCHANGE_MAP` inside `launch-gpt5.py`.
+- Endpoints: see `REGION_EXCHANGE_MAP` inside `latency-multi-geo.py`.
 - Measurement interval: currently 30 seconds between iterations.
 
 ## Troubleshooting

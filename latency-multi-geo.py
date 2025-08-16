@@ -47,7 +47,7 @@ if not logger.handlers:
     _console = logging.StreamHandler()
     _console.setLevel(logging.INFO)
     _console.setFormatter(_formatter)
-    _file = RotatingFileHandler("launch-gpt5.log", maxBytes=1_000_000, backupCount=3)
+    _file = RotatingFileHandler("latency-multi-geo.log", maxBytes=1_000_000, backupCount=3)
     _file.setLevel(logging.INFO)
     _file.setFormatter(_formatter)
     logger.addHandler(_console)
