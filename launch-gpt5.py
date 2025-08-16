@@ -18,6 +18,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 import base64
+from functools import partial
 
 # Charger les variables depuis .env local (si présent)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), override=False)
@@ -33,7 +34,10 @@ SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", "").strip()
 SSH_PUBLIC_KEY = os.getenv("SSH_PUBLIC_KEY", "").strip()
 SSH_PUBLIC_KEY_PATH = os.getenv("SSH_PUBLIC_KEY_PATH", "").strip()
 # SSH connection timeout (seconds)
-SSH_CONNECT_TIMEOUT = int(os.getenv("SSH_CONNECT_TIMEOUT", "15"))
+SSH_CONNECT_TIMEOUT = int(os.getenv("SSH_CONNECT_TIMEOUT", "30"))
+# SSH wait loop (retries/delay) before tests
+SSH_WAIT_RETRIES = int(os.getenv("SSH_WAIT_RETRIES", "20"))
+SSH_WAIT_DELAY = float(os.getenv("SSH_WAIT_DELAY", "10"))
 
 # Logging basique (console + fichier)
 logger = logging.getLogger("vultr-latency")
@@ -142,9 +146,14 @@ class VultrDeployer:
         """Crée une instance dans une région spécifique"""
         # Build optional SSH public key injection block (fallback)
         public_key_content = SSH_PUBLIC_KEY
-        if not public_key_content and SSH_PUBLIC_KEY_PATH and os.path.exists(SSH_PUBLIC_KEY_PATH):
+        # If no explicit public key path, try to derive from SSH_KEY_PATH + '.pub'
+        derived_pub = f"{SSH_KEY_PATH}.pub" if SSH_KEY_PATH else ""
+        public_key_path = SSH_PUBLIC_KEY_PATH
+        if not public_key_path and derived_pub and os.path.exists(derived_pub):
+            public_key_path = derived_pub
+        if not public_key_content and public_key_path and os.path.exists(public_key_path):
             try:
-                with open(SSH_PUBLIC_KEY_PATH, 'r') as pkf:
+                with open(public_key_path, 'r') as pkf:
                     public_key_content = pkf.read().strip()
             except Exception as e:
                 logger.error(f"Erreur lecture SSH_PUBLIC_KEY_PATH: {e}")
@@ -284,9 +293,9 @@ class LatencyTester:
         self.instances = instances_ips
         self.results = {}
         self.identity_opt = f"-i {SSH_KEY_PATH}" if SSH_KEY_PATH else ""
-        self.common_opts = f"-o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={SSH_CONNECT_TIMEOUT}"
+        self.common_opts = f"-o StrictHostKeyChecking=no -o BatchMode=yes -o PasswordAuthentication=no -o ConnectTimeout={SSH_CONNECT_TIMEOUT}"
 
-    def _wait_for_ssh(self, ip: str, retries: int = 10, delay_s: float = 6.0) -> bool:
+    def _wait_for_ssh(self, ip: str, retries: int = SSH_WAIT_RETRIES, delay_s: float = SSH_WAIT_DELAY) -> bool:
         """Attend que le port SSH accepte la connexion clé (tentatives limitées)."""
         for attempt in range(1, retries + 1):
             cmd = f"ssh {self.common_opts} {self.identity_opt} root@{ip} 'echo ok'"
@@ -434,6 +443,27 @@ async def main():
     
     final_df = pd.concat(aggregated_results, ignore_index=True) if aggregated_results else pd.DataFrame()
 
+    # Helpers pour coloration ANSI
+    ANSI_RESET = "\033[0m"
+    ANSI_GREEN = "\033[92m"
+    ANSI_ORANGE = "\033[33m"  # approximation d'orange
+    ANSI_RED = "\033[91m"
+
+    def colorize_latency(value: float) -> str:
+        if pd.isna(value):
+            return "-"
+        try:
+            v = float(value)
+        except Exception:
+            return str(value)
+        if v < 75:
+            color = ANSI_GREEN
+        elif v <= 200:
+            color = ANSI_ORANGE
+        else:
+            color = ANSI_RED
+        return f"{color}{v:.2f}{ANSI_RESET}"
+
     # Tableau récapitulatif par région
     if not final_df.empty:
         pivot_table = final_df.pivot_table(
@@ -443,7 +473,8 @@ async def main():
             aggfunc='mean'
         ).round(2)
         print("\n📈 Latences moyennes (ms):")
-        print(pivot_table.to_string())
+        colored_pivot = pivot_table.applymap(colorize_latency)
+        print(colored_pivot.to_string())
     else:
         print("\n⚠️  Aucun résultat agrégé à afficher.")
     
