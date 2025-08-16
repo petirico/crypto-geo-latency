@@ -3,3 +3,66 @@
 2025-08-16 19:30:56,806 - ERROR - Erreur création instance fra: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
 2025-08-16 19:30:58,150 - ERROR - Erreur création instance ewr: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
 2025-08-16 19:30:59,192 - ERROR - Erreur création instance icn: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
+2025-08-16 21:13:30,436 - ERROR - Erreur création instance nrt: 400 {"error":"sshkey_id must be an array","status":400}
+2025-08-16 21:13:31,386 - ERROR - Erreur création instance sgp: 400 {"error":"sshkey_id must be an array","status":400}
+2025-08-16 21:13:32,397 - ERROR - Erreur création instance fra: 400 {"error":"sshkey_id must be an array","status":400}
+2025-08-16 21:13:33,389 - ERROR - Erreur création instance ewr: 400 {"error":"sshkey_id must be an array","status":400}
+2025-08-16 21:13:34,320 - ERROR - Erreur création instance icn: 400 {"error":"sshkey_id must be an array","status":400}
+2025-08-16 21:22:10,074 - ERROR - SCP échec vers 192.248.176.21: code=255 stderr=root@192.248.176.21: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:12,417 - ERROR - SCP échec vers 64.176.220.253: code=255 stderr=Warning: Permanently added '64.176.220.253' (ED25519) to the list of known hosts.
+root@64.176.220.253: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:15,106 - ERROR - SCP échec vers 207.148.88.215: code=255 stderr=Warning: Permanently added '207.148.88.215' (ED25519) to the list of known hosts.
+root@207.148.88.215: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:16,662 - ERROR - SCP échec vers 141.164.59.210: code=255 stderr=Warning: Permanently added '141.164.59.210' (ED25519) to the list of known hosts.
+root@141.164.59.210: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:17,530 - ERROR - SCP échec vers 64.176.84.8: code=255 stderr=Warning: Permanently added '64.176.84.8' (ED25519) to the list of known hosts.
+root@64.176.84.8: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:49,455 - ERROR - SCP échec vers 192.248.176.21: code=255 stderr=root@192.248.176.21: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:51,690 - ERROR - SCP échec vers 64.176.220.253: code=255 stderr=root@64.176.220.253: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:54,346 - ERROR - SCP échec vers 207.148.88.215: code=255 stderr=root@207.148.88.215: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:55,812 - ERROR - SCP échec vers 141.164.59.210: code=255 stderr=root@141.164.59.210: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:22:56,601 - ERROR - SCP échec vers 64.176.84.8: code=255 stderr=root@64.176.84.8: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:23:57,512 - ERROR - Erreur suppression instance 8e618b42-7c40-43ff-bfab-bb3feb9f5347: 404 {"error":"Invalid instance-id.","status":404}
+2025-08-16 21:23:58,510 - ERROR - Erreur suppression instance c459fb97-d3c8-4e0b-a05e-01157e8e0766: 404 {"error":"Invalid instance-id.","status":404}
+2025-08-16 21:24:00,658 - ERROR - Erreur suppression instance ef767e55-baf5-447b-93e4-e7db7afb7e8b: 404 {"error":"Invalid instance-id.","status":404}
+2025-08-16 21:24:01,723 - ERROR - Erreur suppression instance 7435d8ed-819f-493a-aae2-e0d1424175a8: 404 {"error":"Invalid instance-id.","status":404}
+2025-08-16 21:36:15,564 - ERROR - SCP échec vers 64.176.229.229: code=255 stderr=ssh: connect to host 64.176.229.229 port 22: Operation timed out
+scp: Connection closed
+2025-08-16 21:36:18,215 - ERROR - SCP échec vers 198.13.43.49: code=255 stderr=Warning: Permanently added '198.13.43.49' (ED25519) to the list of known hosts.
+root@198.13.43.49: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:36:18,902 - ERROR - SCP échec vers 45.32.111.48: code=255 stderr=ssh: connect to host 45.32.111.48 port 22: Connection refused
+scp: Connection closed
+2025-08-16 21:36:20,650 - ERROR - SCP échec vers 80.240.27.106: code=255 stderr=Warning: Permanently added '80.240.27.106' (ED25519) to the list of known hosts.
+root@80.240.27.106: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:36:20,964 - ERROR - SCP échec vers 64.176.201.229: code=255 stderr=ssh: connect to host 64.176.201.229 port 22: Connection refused
+scp: Connection closed
+2025-08-16 21:36:52,551 - ERROR - SCP échec vers 64.176.229.229: code=255 stderr=Warning: Permanently added '64.176.229.229' (ED25519) to the list of known hosts.
+root@64.176.229.229: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:36:55,224 - ERROR - SCP échec vers 198.13.43.49: code=255 stderr=root@198.13.43.49: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:36:56,056 - ERROR - SCP échec vers 45.32.111.48: code=255 stderr=Warning: Permanently added '45.32.111.48' (ED25519) to the list of known hosts.
+root@45.32.111.48: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:36:57,794 - ERROR - SCP échec vers 80.240.27.106: code=255 stderr=root@80.240.27.106: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:37:00,097 - ERROR - SCP échec vers 64.176.201.229: code=255 stderr=Warning: Permanently added '64.176.201.229' (ED25519) to the list of known hosts.
+root@64.176.201.229: Permission denied (publickey,password).
+scp: Connection closed
+2025-08-16 21:46:49,165 - INFO - Création instance nrt: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 21:46:50,692 - INFO - Création instance sgp: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 21:46:51,911 - INFO - Création instance fra: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 21:46:53,370 - INFO - Création instance ewr: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']
+2025-08-16 21:46:54,520 - INFO - Création instance icn: sshkey_ids=['044d0839-64ae-443b-836a-017fe1776937']

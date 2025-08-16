@@ -24,6 +24,16 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), overrid
 
 # Configuration
 VULTR_API_KEY = os.getenv("VULTR_API_KEY")  # Export your API key
+# Optional: attach Vultr SSH key(s) at instance creation (per Vultr API)
+VULTR_SSH_KEY_ID = os.getenv("VULTR_SSH_KEY_ID", "").strip()
+VULTR_SSH_KEY_IDS = os.getenv("VULTR_SSH_KEY_IDS", "").strip()  # comma-separated
+# Optional: local SSH private key to access instances (adds -i to ssh/scp)
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", "").strip()
+# Optional: inject a public key via user_data as fallback
+SSH_PUBLIC_KEY = os.getenv("SSH_PUBLIC_KEY", "").strip()
+SSH_PUBLIC_KEY_PATH = os.getenv("SSH_PUBLIC_KEY_PATH", "").strip()
+# SSH connection timeout (seconds)
+SSH_CONNECT_TIMEOUT = int(os.getenv("SSH_CONNECT_TIMEOUT", "15"))
 
 # Logging basique (console + fichier)
 logger = logging.getLogger("vultr-latency")
@@ -130,10 +140,30 @@ class VultrDeployer:
     
     def create_instance(self, region: str, label: str) -> str:
         """Crée une instance dans une région spécifique"""
+        # Build optional SSH public key injection block (fallback)
+        public_key_content = SSH_PUBLIC_KEY
+        if not public_key_content and SSH_PUBLIC_KEY_PATH and os.path.exists(SSH_PUBLIC_KEY_PATH):
+            try:
+                with open(SSH_PUBLIC_KEY_PATH, 'r') as pkf:
+                    public_key_content = pkf.read().strip()
+            except Exception as e:
+                logger.error(f"Erreur lecture SSH_PUBLIC_KEY_PATH: {e}")
+
+        public_key_block = ""
+        if public_key_content:
+            public_key_block = f"""
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+echo '{public_key_content}' >> /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+chown -R root:root /root/.ssh
+"""
+
         startup_script = """#!/bin/bash
 apt-get update
 apt-get install -y python3-pip curl net-tools
 pip3 install aiohttp requests pandas numpy
+""" + public_key_block + """
 cat > /root/latency_test.py << 'EOF'
 import asyncio
 import aiohttp
@@ -184,6 +214,16 @@ EOF
             "user_data": encoded_user_data,
             "backups": "disabled"
         }
+
+        # Attach SSH key(s) via Vultr API if provided (expects an array: sshkey_ids)
+        ssh_ids = []
+        if VULTR_SSH_KEY_IDS:
+            ssh_ids = [s.strip() for s in VULTR_SSH_KEY_IDS.split(',') if s.strip()]
+        elif VULTR_SSH_KEY_ID:
+            ssh_ids = [VULTR_SSH_KEY_ID]
+        if ssh_ids:
+            data["sshkey_ids"] = ssh_ids
+            logger.info(f"Création instance {region}: sshkey_ids={ssh_ids}")
         
         response = requests.post(
             f"{self.base_url}/instances",
@@ -243,6 +283,20 @@ class LatencyTester:
     def __init__(self, instances_ips: Dict):
         self.instances = instances_ips
         self.results = {}
+        self.identity_opt = f"-i {SSH_KEY_PATH}" if SSH_KEY_PATH else ""
+        self.common_opts = f"-o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={SSH_CONNECT_TIMEOUT}"
+
+    def _wait_for_ssh(self, ip: str, retries: int = 10, delay_s: float = 6.0) -> bool:
+        """Attend que le port SSH accepte la connexion clé (tentatives limitées)."""
+        for attempt in range(1, retries + 1):
+            cmd = f"ssh {self.common_opts} {self.identity_opt} root@{ip} 'echo ok'"
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip() == 'ok':
+                return True
+            logger.info(f"SSH pas prêt sur {ip} (tentative {attempt}/{retries}) code={res.returncode}")
+            time.sleep(delay_s)
+        logger.error(f"SSH indisponible sur {ip} après {retries} tentatives")
+        return False
     
     async def test_endpoint(self, session, url: str, name: str) -> Tuple[str, float]:
         """Test un endpoint unique"""
@@ -262,13 +316,27 @@ class LatencyTester:
         with open('/tmp/endpoints.json', 'w') as f:
             json.dump(endpoints, f)
         
+        # Options SSH communes (BatchMode pour éviter les prompts, timeout pour éviter les blocages)
+        identity_opt = self.identity_opt
+        common_opts = self.common_opts
+
+        # Attendre SSH prêt
+        if not self._wait_for_ssh(ip):
+            return {}
+
         # SCP le fichier vers l'instance
-        scp_cmd = f"scp -o StrictHostKeyChecking=no /tmp/endpoints.json root@{ip}:/root/"
-        subprocess.run(scp_cmd, shell=True, capture_output=True)
+        scp_cmd = f"scp {common_opts} {identity_opt} /tmp/endpoints.json root@{ip}:/root/"
+        scp_res = subprocess.run(scp_cmd, shell=True, capture_output=True, text=True)
+        if scp_res.returncode != 0:
+            logger.error(f"SCP échec vers {ip}: code={scp_res.returncode} stderr={scp_res.stderr.strip()}")
+            return {}
         
         # Execute le test sur l'instance distante
-        ssh_cmd = f"ssh -o StrictHostKeyChecking=no root@{ip} 'python3 /root/latency_test.py'"
+        ssh_cmd = f"ssh {common_opts} {identity_opt} root@{ip} 'python3 /root/latency_test.py'"
         result = subprocess.run(ssh_cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"SSH échec sur {ip}: code={result.returncode} stderr={result.stderr.strip()}")
+            return {}
         
         try:
             return json.loads(result.stdout)
@@ -282,27 +350,21 @@ class LatencyTester:
         for region, ip in self.instances.items():
             if region in REGION_EXCHANGE_MAP:
                 print(f"\n🔍 Test depuis {REGION_EXCHANGE_MAP[region]['name']} ({region})...")
-                
                 # Combine CEX et DEX endpoints
                 endpoints = {}
                 endpoints.update(REGION_EXCHANGE_MAP[region].get('cex', {}))
                 endpoints.update(REGION_EXCHANGE_MAP[region].get('dex', {}))
-                
-                # Test local (depuis votre machine)
-                async with aiohttp.ClientSession() as session:
-                    tasks = [self.test_endpoint(session, url, name) 
-                            for name, url in endpoints.items()]
-                    local_results = await asyncio.gather(*tasks)
-                    
-                    for exchange, latency in local_results:
-                        if latency > 0:
-                            all_results.append({
-                                'Region': REGION_EXCHANGE_MAP[region]['name'],
-                                'Exchange': exchange,
-                                'Type': 'CEX' if exchange in REGION_EXCHANGE_MAP[region].get('cex', {}) else 'DEX',
-                                'Latency (ms)': round(latency, 2),
-                                'Timestamp': datetime.now()
-                            })
+                # Test distant (depuis l'instance)
+                remote_results = await self.test_from_region(region, ip, endpoints)
+                for exchange, stats in remote_results.items():
+                    if isinstance(stats, dict) and 'avg' in stats:
+                        all_results.append({
+                            'Region': REGION_EXCHANGE_MAP[region]['name'],
+                            'Exchange': exchange,
+                            'Type': 'CEX' if exchange in REGION_EXCHANGE_MAP[region].get('cex', {}) else 'DEX',
+                            'Latency (ms)': round(float(stats['avg']), 2),
+                            'Timestamp': datetime.now()
+                        })
         
         return pd.DataFrame(all_results)
 
@@ -331,27 +393,39 @@ async def main():
     instances_ips = deployer.wait_for_instances()
     
     # Choix de la durée de test
-    print("\n⏲️  Sélectionnez la durée du test: 1, 5, 15, 60 minutes (1h) — Entrée pour 5 par défaut")
-    duration_choice = input("Durée (min) [1/5/15/60/1h]: ").strip().lower()
-    valid_choices = {"": 5, "1": 1, "1m": 1, "5": 5, "15": 15, "60": 60, "1h": 60, "h": 60}
+    print("\n⏲️  Sélectionnez la durée du test: 0 (single pass), 1, 5, 15, 60 minutes (1h) — Entrée pour 5 par défaut")
+    duration_choice = input("Durée (min) [0/1/5/15/60/1h]: ").strip().lower()
+    valid_choices = {"": 5, "0": 0, "1": 1, "1m": 1, "5": 5, "15": 15, "60": 60, "1h": 60, "h": 60}
     test_minutes = valid_choices.get(duration_choice, 5)
-    print(f"⏳ Test en cours pour {test_minutes} minutes...")
+    if test_minutes == 0:
+        print("⏳ Single-pass test (one iteration per geography)...")
+    else:
+        print(f"⏳ Test en cours pour {test_minutes} minutes...")
 
     # Tester les latences sur la durée choisie
     tester = LatencyTester(instances_ips)
     aggregated_results: List[pd.DataFrame] = []
-    start_ts = time.time()
-    iteration = 0
-    while time.time() - start_ts < test_minutes * 60:
-        iteration += 1
-        print(f"\n📊 Mesure {iteration}...")
+    if test_minutes == 0:
+        # Single pass
         try:
             run_df = await tester.test_all_regions()
             if not run_df.empty:
                 aggregated_results.append(run_df)
         except Exception as e:
-            logger.error(f"Erreur pendant la mesure {iteration}: {e}")
-        await asyncio.sleep(30)  # intervalle entre mesures
+            logger.error(f"Erreur pendant la mesure unique: {e}")
+    else:
+        start_ts = time.time()
+        iteration = 0
+        while time.time() - start_ts < test_minutes * 60:
+            iteration += 1
+            print(f"\n📊 Mesure {iteration}...")
+            try:
+                run_df = await tester.test_all_regions()
+                if not run_df.empty:
+                    aggregated_results.append(run_df)
+            except Exception as e:
+                logger.error(f"Erreur pendant la mesure {iteration}: {e}")
+            await asyncio.sleep(30)  # intervalle entre mesures
     
     # Agréger et afficher les résultats
     print("\n" + "="*80)
@@ -400,22 +474,31 @@ async def main():
     print(f"  - Test (~{test_minutes} min): ${len(instances_ips) * 0.018 * test_hours:.2f}")
     print(f"  - Mensuel (si gardé): ${len(instances_ips) * 12:.2f}")
     
-    # Demander si on détruit les instances (auto 'y' après 30s)
-    prompt = "\n🗑️  Détruire les instances de test? (y/n) [auto 'y' après 30s]: "
-    try:
-        destroy = await asyncio.wait_for(asyncio.to_thread(input, prompt), timeout=30)
-    except asyncio.TimeoutError:
-        print("⏱️  Pas de réponse après 30s, destruction automatique des instances...")
-        destroy = 'y'
-
-    if destroy.lower() == 'y':
+    # Destruction des instances
+    if test_minutes == 0:
+        print("\n🗑️  Option 0 sélectionnée: destruction immédiate des instances...")
         for region, instance_id in deployer.instances.items():
             if deployer.destroy_instance(instance_id):
                 print(f"  ✓ Instance {region} détruite")
             else:
                 print(f"  ✗ Erreur destruction {region}")
     else:
-        print("  ⚠️  Instances conservées à votre demande.")
+        # Demander si on détruit les instances (auto 'y' après 30s)
+        prompt = "\n🗑️  Détruire les instances de test? (y/n) [auto 'y' après 30s]: "
+        try:
+            destroy = await asyncio.wait_for(asyncio.to_thread(input, prompt), timeout=30)
+        except asyncio.TimeoutError:
+            print("⏱️  Pas de réponse après 30s, destruction automatique des instances...")
+            destroy = 'y'
+
+        if destroy.lower() == 'y':
+            for region, instance_id in deployer.instances.items():
+                if deployer.destroy_instance(instance_id):
+                    print(f"  ✓ Instance {region} détruite")
+                else:
+                    print(f"  ✗ Erreur destruction {region}")
+        else:
+            print("  ⚠️  Instances conservées à votre demande.")
     
     print("\n✅ Test terminé!")
 
