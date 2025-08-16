@@ -1,0 +1,5 @@
+2025-08-16 19:30:54,631 - ERROR - Erreur création instance nrt: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
+2025-08-16 19:30:55,695 - ERROR - Erreur création instance sgp: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
+2025-08-16 19:30:56,806 - ERROR - Erreur création instance fra: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
+2025-08-16 19:30:58,150 - ERROR - Erreur création instance ewr: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
+2025-08-16 19:30:59,192 - ERROR - Erreur création instance icn: 400 {"error":"Invalid user_data (check base64 encoding)","status":400}
